@@ -1,0 +1,15 @@
+{
+  "name": "stair-designer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Quarter-turn timber stair designer: live drawings, Finnish rules check, 3D, PDF and DXF export",
+  "scripts": {
+    "test": "node test/check.mjs",
+    "build": "node tools/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "jsts": "2.12.1"
+  }
+}

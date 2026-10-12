@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- BUILD:KEEP-START -->
+<title>Stair Designer</title>
+<meta name="description" content="Quarter-turn timber stair designer: live drawings, Finnish rules check (YMa 1007/2017), 3D model, PDF and DXF export.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap">
+<style>
+:root {
+  --ground: #eceee9;
+  --panel: #f7f8f5;
+  --sheet: #ffffff;
+  --ink: #1a1e21;
+  --ink-2: #4f575c;
+  --ink-3: #737b80;
+  --rule: #c3c8c2;
+  --rule-2: #dde1dc;
+  --frame: #1a1e21;
+  --accent: #1d5bd6;
+  --accent-ink: #ffffff;
+  --accent-soft: #dfe8fb;
+  --pass: #137631;
+  --pass-bg: #e2f0e5;
+  --warn: #a65500;
+  --warn-bg: #faecd8;
+  --fail: #c4271c;
+  --fail-bg: #fae3df;
+  --info: #646c71;
+  --info-bg: #e7e9e6;
+  --shadow: 0 6px 24px rgba(20, 26, 30, 0.16);
+  --f-ui: "Barlow Semi Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --f-fig: "Barlow Condensed", "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #101315; --panel: #161a1d; --sheet: #1b1f24; --ink: #e2e5e2; --ink-2: #a5adaf; --ink-3: #848c8f;
+    --rule: #333a3e; --rule-2: #252b2f; --frame: #c9cfcc; --accent: #7aa6ff; --accent-ink: #0b1220; --accent-soft: #1f2c47;
+    --pass: #5cc879; --pass-bg: #18301f; --warn: #f2a64c; --warn-bg: #352713; --fail: #ff7468; --fail-bg: #3a1916;
+    --info: #9aa2a5; --info-bg: #23292c; --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #101315; --panel: #161a1d; --sheet: #1b1f24; --ink: #e2e5e2; --ink-2: #a5adaf; --ink-3: #848c8f;
+  --rule: #333a3e; --rule-2: #252b2f; --frame: #c9cfcc; --accent: #7aa6ff; --accent-ink: #0b1220; --accent-soft: #1f2c47;
+  --pass: #5cc879; --pass-bg: #18301f; --warn: #f2a64c; --warn-bg: #352713; --fail: #ff7468; --fail-bg: #3a1916;
+  --info: #9aa2a5; --info-bg: #23292c; --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 15px/1.4 var(--f-ui);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+h2, h3 { text-wrap: balance; }
+
+/* ---------------------------------------------------------- layout */
+.app {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 300px minmax(0, 1fr) 344px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "tb tb tb" "side main rules";
+}
+.tb { grid-area: tb; }
+.side { grid-area: side; }
+.main { grid-area: main; }
+.rules { grid-area: rules; }
+
+/* ---------------------------------------------- title-block header */
+.tb {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.7fr) repeat(3, minmax(118px, 1fr)) minmax(176px, 1.25fr) auto;
+  background: var(--panel);
+  border-bottom: 2px solid var(--frame);
+}
+.tb-cell {
+  min-width: 0;
+  padding: 7px 14px 8px;
+  border-left: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  text-align: left;
+  background: none;
+  border-top: 0; border-right: 0; border-bottom: 0;
+}
+.tb-cell:first-child { border-left: 0; padding-left: 16px; }
+.cap { font-size: 12px; color: var(--ink-3); letter-spacing: 0.01em; }
+.val { font: 600 21px/1.15 var(--f-fig); letter-spacing: 0.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-name .val { font: 600 19px/1.2 var(--f-ui); }
+.tb-cell[data-state="bad"] .val { color: var(--fail); }
+.tb-verdict { cursor: pointer; }
+.tb-verdict:hover .sub { text-decoration: underline; }
+.v-fail { background: var(--fail-bg); }
+.v-fail .val { color: var(--fail); }
+.v-warn { background: var(--warn-bg); }
+.v-warn .val { color: var(--warn); }
+.v-pass { background: var(--pass-bg); }
+.v-pass .val { color: var(--pass); }
+.tb-actions { flex-direction: row; align-items: center; padding: 8px 14px; }
+
+.menu { position: relative; }
+.menu > summary {
+  list-style: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 16px;
+  background: var(--accent); color: var(--accent-ink);
+  border-radius: 3px; font-weight: 600; cursor: pointer; user-select: none;
+}
+.menu > summary::-webkit-details-marker { display: none; }
+.menu > summary::after { content: ""; width: 7px; height: 7px; border: solid currentColor; border-width: 0 1.6px 1.6px 0; transform: translateY(-2px) rotate(45deg); }
+.menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+  width: 290px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; box-shadow: var(--shadow);
+}
+.menu-list button {
+  display: grid; grid-template-columns: 1fr auto; gap: 0 12px; align-items: baseline;
+  width: 100%; padding: 7px 10px; border: 0; border-radius: 3px; background: none; text-align: left;
+}
+.menu-list button:hover, .menu-list button:focus-visible { background: var(--accent-soft); }
+.menu-list b { font-weight: 600; }
+.menu-list small { color: var(--ink-3); font-size: 12px; }
+.menu-list .fmt { font-size: 12px; color: var(--ink-2); }
+.menu-list hr { border: 0; border-top: 1px solid var(--rule-2); margin: 5px 4px; }
+.menu-list button.busy { opacity: 0.55; cursor: progress; }
+
+/* ---------------------------------------------------------- sidebar */
+.side {
+  background: var(--panel);
+  border-right: 1px solid var(--rule);
+  overflow: auto;
+  min-height: 0;
+  padding-block: 14px 24px;
+}
+.side-top { padding-inline: 16px; display: grid; gap: 10px; padding-bottom: 12px; }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.preset {
+  display: grid; gap: 1px; padding: 7px 10px; text-align: left;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px;
+}
+.preset b { font-weight: 600; }
+.preset small { color: var(--ink-3); font-size: 12px; line-height: 1.25; }
+.preset[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn {
+  height: 30px; padding: 0 11px;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px;
+  font-weight: 500; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { border-color: var(--ink-3); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.busy { opacity: 0.6; cursor: progress; }
+.form-msg { margin: 0 16px 8px; display: grid; gap: 4px; }
+.form-msg p { margin: 0; padding: 6px 9px; border-radius: 3px; font-size: 13px; }
+.m-fail { background: var(--fail-bg); color: var(--fail); }
+.m-warn { background: var(--warn-bg); color: var(--warn); }
+
+.grp { border-top: 1px solid var(--rule-2); }
+.grp > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; font-weight: 600; font-size: 15px;
+}
+.grp > summary::-webkit-details-marker { display: none; }
+.grp > summary::after { content: ""; width: 7px; height: 7px; border: solid var(--ink-3); border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); transition: transform 0.15s; }
+.grp[open] > summary::after { transform: translateY(-2px) rotate(45deg); }
+.grp.adv > summary { color: var(--ink-2); font-weight: 500; }
+.grp-body { display: grid; gap: 9px; padding: 0 16px 14px; }
+.fld { display: grid; grid-template-columns: minmax(0, 1fr) 128px; align-items: center; gap: 2px 10px; }
+.fld .lab { color: var(--ink); line-height: 1.2; }
+.fld .hint { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.3; }
+.fld.off { opacity: 0.42; }
+.fld-seg, .fld-text, .fld-select { grid-template-columns: minmax(0, 1fr); }
+.fld-select .ctl, .fld-text .ctl { display: block; }
+.ctl.num { position: relative; display: block; }
+.ctl input[type="number"], .ctl input[type="text"], .ctl select {
+  width: 100%; height: 30px;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px;
+  padding: 0 8px;
+}
+.ctl input[type="number"] { text-align: right; padding-right: 34px; -moz-appearance: textfield; }
+.ctl input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+.ctl .unit { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--ink-3); pointer-events: none; }
+.fld.bad input { border-color: var(--fail); background: var(--fail-bg); }
+.fld-bool { grid-template-columns: minmax(0, 1fr) auto; }
+.sw {
+  appearance: none; -webkit-appearance: none; margin: 0;
+  width: 36px; height: 20px; border-radius: 10px;
+  background: var(--rule); position: relative; cursor: pointer; transition: background 0.15s;
+}
+.sw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--sheet); transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+.sw:checked { background: var(--accent); }
+.sw:checked::after { transform: translateX(16px); }
+.seg { display: flex; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; background: var(--sheet); margin-top: 3px; }
+.seg button { flex: 1; height: 29px; border: 0; background: none; border-left: 1px solid var(--rule); padding: 0 6px; }
+.seg button:first-child { border-left: 0; }
+.seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg button:disabled { cursor: default; }
+.side-foot { padding: 14px 16px 0; font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--rule-2); }
+.side-foot p { margin: 0 0 6px; }
+
+/* ------------------------------------------------------------- main */
+.main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
+.tabs {
+  display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin;
+  padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--rule);
+}
+.tab {
+  flex: none; position: relative;
+  height: 40px; padding: 0 12px;
+  background: none; border: 0; color: var(--ink-2); font-weight: 500;
+}
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.tab[aria-selected="true"]::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2.5px; background: var(--accent); }
+.tab .cnt:not(:empty) { margin-left: 6px; padding: 0 5px; border-radius: 8px; background: var(--fail); color: #fff; font-size: 11px; font-weight: 600; }
+.narrow-only { display: none; }
+
+.stage { position: relative; min-height: 0; overflow: hidden; background: var(--sheet); }
+.stage-host { position: absolute; inset: 0; }
+.cv { display: block; touch-action: none; cursor: grab; outline: none; }
+@media (pointer: coarse) { .cv { touch-action: pan-y; } }
+.cv:active { cursor: grabbing; }
+.cv:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.gl { display: block; touch-action: none; }
+.doc-host { overflow: auto; background: var(--ground); }
+body.has-error .stage-host, body.has-error #rulesBody { opacity: 0.3; filter: grayscale(1); }
+.stale-note { display: none; margin: 0 0 8px; font-size: 12.5px; color: var(--ink-2); }
+body.has-error .stale-note { display: block; }
+.stage-error {
+  position: absolute; z-index: 5; left: 12px; right: 12px; top: 12px;
+  padding: 10px 14px; border-radius: 3px; background: var(--fail-bg); color: var(--fail);
+  border: 1px solid var(--fail);
+}
+.bar { position: absolute; z-index: 4; top: 10px; right: 10px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 20px); }
+.bar .btn { background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+.bar .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.bar .sep { width: 1px; background: var(--rule); margin: 4px 2px; }
+.sheet-bar { left: 10px; right: auto; justify-content: flex-start; }
+.sheet-bar .pg[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.coords { position: absolute; z-index: 4; left: 12px; bottom: 9px; font-size: 12px; color: var(--ink-3); pointer-events: none; white-space: pre; }
+.gl-msg { position: absolute; z-index: 4; inset: 0; display: grid; place-items: center; color: var(--ink-2); }
+.howto { position: absolute; z-index: 4; right: 12px; bottom: 9px; font-size: 12px; color: var(--ink-3); pointer-events: none; }
+
+/* ---------------------------------------------------------- rules */
+.rules { background: var(--panel); border-left: 1px solid var(--rule); overflow: auto; min-height: 0; padding: 14px 16px 24px; }
+.rules > h2 { margin: 0 0 8px; font-size: 17px; }
+.verdict { margin: 0 0 10px; padding: 8px 11px; border-radius: 3px; }
+.chks { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 1px; background: var(--rule-2); border: 1px solid var(--rule-2); }
+.chk {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 1px 10px; align-items: baseline;
+  padding: 7px 10px; background: var(--panel);
+}
+.badge { font-size: 11.5px; font-weight: 600; text-align: center; padding: 1px 0; border-radius: 2px; }
+.s-pass .badge { background: var(--pass-bg); color: var(--pass); }
+.s-fail .badge { background: var(--fail); color: #fff; }
+.s-warn .badge { background: var(--warn-bg); color: var(--warn); }
+.s-info .badge { background: var(--info-bg); color: var(--info); }
+.s-fail { background: var(--fail-bg); }
+.chk .rule { font-weight: 500; line-height: 1.25; }
+.chk .vl { display: grid; justify-items: end; line-height: 1.2; text-align: right; max-width: 9.5em; }
+.chk .v { font: 600 15px/1.2 var(--f-fig); }
+.s-fail .v { color: var(--fail); }
+.chk .l { font-size: 12px; color: var(--ink-3); }
+.chk .note, .chk .ref { grid-column: 2 / -1; font-size: 12px; color: var(--ink-3); line-height: 1.3; }
+.chk .ref { font-size: 11.5px; }
+.rules h3, .doc h3 { margin: 16px 0 6px; font-size: 14.5px; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--rule-2); text-align: left; vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); border-bottom-color: var(--rule); white-space: nowrap; }
+td.n, th.n, .steps td:not(:first-child), .steps th:not(:first-child) { text-align: right; }
+.steps tr.bad td { color: var(--fail); font-weight: 600; }
+.tap { margin-left: 4px; font-size: 10px; color: var(--ink-3); }
+.fine { font-size: 12px; color: var(--ink-3); line-height: 1.4; }
+.flash { animation: flash 1s ease-out; }
+@keyframes flash { from { box-shadow: inset 0 0 0 999px var(--accent-soft); } to { box-shadow: inset 0 0 0 999px transparent; } }
+
+/* ------------------------------------------------------------ docs */
+.doc { max-width: 1120px; margin: 0 auto; padding: 18px 20px 40px; }
+.doc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.doc h2 { margin: 0; font-size: 22px; font-family: var(--f-fig); font-weight: 600; }
+.report h1 { font-size: 22px; }
+.report h2 { margin: 26px 0 8px; font-size: 19px; }
+.report h3 { margin: 18px 0 6px; }
+.report p, .report li { max-width: 78ch; }
+.report table { margin: 6px 0 10px; background: var(--panel); }
+.cut { background: var(--panel); }
+.cut td:last-child { color: var(--ink-2); min-width: 220px; }
+.cut td:nth-child(-n+2) { white-space: nowrap; }
+.rules-doc .chks { max-width: 760px; }
+
+.toast {
+  position: fixed; z-index: 50; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 12px); opacity: 0; transition: opacity 0.2s, transform 0.2s;
+  background: var(--ink); color: var(--panel); padding: 9px 16px; border-radius: 4px; box-shadow: var(--shadow);
+  max-width: calc(100% - 32px);
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ------------------------------------------------------ responsive */
+@media (max-width: 1279px) {
+  .app { grid-template-columns: 292px minmax(0, 1fr); grid-template-areas: "tb tb" "side main"; }
+  .rules { display: none; }
+  .narrow-only { display: inline-block; }
+  .tb { grid-template-columns: minmax(200px, 1.5fr) repeat(3, minmax(104px, 1fr)) minmax(160px, 1.2fr) auto; }
+}
+@media (max-width: 899px) {
+  html, body { height: auto; }
+  .app { display: flex; flex-direction: column; height: auto; }
+  .tb {
+    order: 0;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "name act" "rise going" "pitch verdict";
+  }
+  .tb-name { grid-area: name; }
+  .tb-name .val { white-space: normal; font-size: 17px; }
+  .tb-actions { grid-area: act; justify-content: flex-end; border-left: 0; }
+  #tbRise { grid-area: rise; }
+  #tbGoing { grid-area: going; }
+  #tbPitch { grid-area: pitch; }
+  .tb-verdict { grid-area: verdict; }
+  #tbRise, #tbGoing, #tbPitch, .tb-verdict { border-top: 1px solid var(--rule); }
+  #tbRise, #tbPitch { border-left: 0; padding-left: 16px; }
+  .main { order: 1; display: block; }
+  .side { order: 2; border-right: 0; border-top: 1px solid var(--rule); overflow: visible; }
+  .rules { order: 3; display: block; border-left: 0; border-top: 1px solid var(--rule); overflow: visible; }
+  .tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; }
+  .stage { height: 64vh; height: 64svh; min-height: 340px; }
+  .narrow-only { display: none; }
+  .howto { font-size: 11.5px; }
+  .menu-list { right: 0; left: auto; width: min(300px, calc(100vw - 32px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; }
+  .toast, .sw, .sw::after, .grp > summary::after { transition: none; }
+}
+</style>
+<!-- BUILD:KEEP-END -->
+</head>
+<body>
+<!-- BUILD:BODY-START -->
+<div class="app">
+  <header class="tb">
+    <div class="tb-cell tb-name">
+      <span class="cap">Stair designer</span>
+      <span class="val" id="tbProject">Stair</span>
+      <span class="sub" id="tbProjectSub"></span>
+    </div>
+    <div class="tb-cell" id="tbRise"><span class="cap">Rise</span><span class="val">–</span><span class="sub"></span></div>
+    <div class="tb-cell" id="tbGoing"><span class="cap">Going on the walking line</span><span class="val">–</span><span class="sub"></span></div>
+    <div class="tb-cell" id="tbPitch"><span class="cap">Pitch</span><span class="val">–</span><span class="sub"></span></div>
+    <button class="tb-cell tb-verdict" id="tbVerdict" type="button" aria-label="Rules check – show details">
+      <span class="cap">Finnish rules</span><span class="val" id="tbVerdictVal">–</span><span class="sub" id="tbVerdictSub"></span>
+    </button>
+    <div class="tb-cell tb-actions">
+      <details class="menu" id="exportMenu">
+        <summary>Export</summary>
+        <div class="menu-list" role="menu">
+          <button type="button" role="menuitem" data-export="pdf"><b>Drawings</b><span class="fmt">PDF</span><small>5 × A3: plan + rules, elevation, walking line + newel, stringers, treads</small></button>
+          <button type="button" role="menuitem" data-export="tpl"><b>Templates 1:1</b><span class="fmt">PDF</span><small>one true-size page per tread, stringer and the newel</small></button>
+          <hr>
+          <button type="button" role="menuitem" data-export="dxf"><b>Drawings</b><span class="fmt">DXF</span><small>all views at 1:1 mm, layers as in CAD</small></button>
+          <button type="button" role="menuitem" data-export="tdxf"><b>Templates 1:1</b><span class="fmt">DXF</span><small>cut outlines for CNC or plotting</small></button>
+          <hr>
+          <button type="button" role="menuitem" data-export="csv"><b>Cut list</b><span class="fmt">CSV</span></button>
+          <button type="button" role="menuitem" data-export="md"><b>Report</b><span class="fmt">MD</span><small>rules, steps, marking tables</small></button>
+          <button type="button" role="menuitem" data-export="toml"><b>Parameters</b><span class="fmt">TOML</span><small>opens here and in the Python tool</small></button>
+          <hr>
+          <button type="button" role="menuitem" data-export="zip"><b>Everything</b><span class="fmt">ZIP</span></button>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <aside class="side" aria-label="Stair inputs">
+    <div class="side-top">
+      <div class="presets" role="group" aria-label="Start from a version">
+        <button class="preset" type="button" data-preset="A" aria-pressed="false"><b>Version A</b><small>architect's radial winders</small></button>
+        <button class="preset" type="button" data-preset="B" aria-pressed="false"><b>Version B</b><small>balanced winders</small></button>
+      </div>
+      <div class="tools">
+        <button class="btn" id="undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
+        <button class="btn" id="redo" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
+        <button class="btn" id="importBtn" type="button">Open parameters…</button>
+        <input type="file" id="importFile" accept=".toml,.json,.txt" hidden>
+      </div>
+    </div>
+    <div class="form-msg" id="formMsg" hidden></div>
+    <div id="form"></div>
+    <div class="side-foot">
+      <p>Dimensions in mm. Rules: YMa 1007/2017 and the YM guide <i>Rakennuksen käyttöturvallisuus</i> (2018). Confirm the walking-line interpretation with rakennusvalvonta.</p>
+      <p>Your last design is kept in this browser.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
+    <section class="stage" id="stage">
+      <div class="stage-host" id="cvHost"></div>
+      <div class="stage-host" id="glHost" hidden><div class="gl-msg" id="glMsg" hidden></div></div>
+      <div class="stage-host doc-host" id="docHost" hidden></div>
+      <div class="bar" id="cvBar">
+        <button class="btn" id="palBtn" type="button" title="Drawing background">Dark</button>
+        <button class="btn" id="fitBtn" type="button" title="Fit (double-click, or 0)">Fit</button>
+      </div>
+      <div class="bar sheet-bar" id="sheetBar" hidden>
+        <button class="btn pg" type="button">1 Plan</button>
+        <button class="btn pg" type="button">2 Elevation</button>
+        <button class="btn pg" type="button">3 Walking line</button>
+        <button class="btn pg" type="button">4 Stringers</button>
+        <button class="btn pg" type="button">5 Treads</button>
+        <span class="sep"></span>
+        <button class="btn" id="sheetPdf" type="button">Download PDF</button>
+      </div>
+      <div class="bar" id="glBar" hidden>
+        <button class="btn" type="button" data-cam="front">Front</button>
+        <button class="btn" type="button" data-cam="side">Side</button>
+        <button class="btn" type="button" data-cam="top">Top</button>
+        <span class="sep"></span>
+        <button class="btn" type="button" id="gl_walls" aria-pressed="true">Walls</button>
+        <button class="btn" type="button" id="gl_guard" aria-pressed="true">Guard</button>
+        <button class="btn" type="button" id="gl_walkline" aria-pressed="true">Walking line</button>
+      </div>
+      <div class="coords" id="coords" aria-hidden="true"></div>
+      <div class="howto" id="howto" aria-hidden="true"></div>
+      <div class="stage-error" id="stageError" role="alert" hidden></div>
+    </section>
+  </main>
+
+  <aside class="rules" id="rulesPanel" aria-label="Rules check">
+    <h2>Rules check</h2>
+    <p class="stale-note">Showing the last stair that could be built.</p>
+    <div id="rulesBody"></div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/jsts@2.12.1/dist/jsts.min.js"></script>
+<script type="module" src="./src/app.js"></script>
+<!-- BUILD:BODY-END -->
+</body>
+</html>
